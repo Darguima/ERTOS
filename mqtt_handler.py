@@ -1,3 +1,4 @@
+import argparse
 import paho.mqtt.client as mqtt
 from firebase import firebase
 import json
@@ -8,12 +9,18 @@ PORT = 1883
 TOPIC_SOLAR_PANEL = "sensor/solar_panel_rpi"
 TOPIC_WATTAGE_METER = "sensor/wattage_meter_rt_c_component"
 
-firebase_url = "https://erts-pr-default-rtdb.europe-west1.firebasedatabase.app/"
+FIREBASE_URL = "https://erts-pr-default-rtdb.europe-west1.firebasedatabase.app/"
 
-firebase = firebase.FirebaseApplication(firebase_url, None)
+firebase = firebase.FirebaseApplication(FIREBASE_URL, None)
 
 last_solar_panel_message = None
 last_wattage_meter_message = None
+
+parser = argparse.ArgumentParser(description="MQTT Handler for Solar Energy Monitoring")
+parser.add_argument("house_id", help="House ID for identifying the data source")
+args = parser.parse_args()
+
+HOUSE_ID = args.house_id
 
 def on_connect(client, userdata, flags, reason_code, properties):
     if reason_code.is_failure:
@@ -65,6 +72,7 @@ def on_message(client, userdata, msg):
         "temperature": last_solar_panel_message["temperature"],
         "consumption_wattage": last_wattage_meter_message["consumption_wattage"],
         "production_wattage": last_wattage_meter_message["production_wattage"],
+        "house_id": HOUSE_ID,
         "timestamp": int(time.time())
     }
 

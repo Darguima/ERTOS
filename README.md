@@ -46,5 +46,6 @@ To receive the data from the meters and send it to the database, we need to run 
 You should edit the file to place the correct Firebase URL of a Real Time database.
 
 ```bash
-$ python mqtt_handler.py
+$ python mqtt_handler.py <house_id>
+$ python mqtt_handler.py HOUSE_123 # example
 ```
