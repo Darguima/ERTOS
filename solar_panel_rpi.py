@@ -4,7 +4,12 @@ import time
 import math
 import random
 
-from sense_hat import SenseHat
+SENSE_HAT = True
+try:
+    from sense_hat import SenseHat
+except Exception:
+    print("⚠️ \033[91mSenseHat not found, using fake data\033[0m ⚠️")
+    SENSE_HAT = False
 
 BROKER = "localhost"
 PORT = 1883
@@ -29,13 +34,13 @@ def getSenseHatData():
     # Temp: min at 5 AM, max at 3 PM
     # Humidity: higher at night, lower during the day
 
-    sense = SenseHat()
-    temperature = sense.get_temperature()
-    humidity = sense.get_humidity()
-
-
-    # temperature = 10 + 10 * math.sin((hour - 5) / 24 * 2 * math.pi)
-    # humidity = 70 - 20 * math.sin((hour - 2) / 24 * 2 * math.pi)
+    if SENSE_HAT:
+        sense = SenseHat()
+        temperature = sense.get_temperature()
+        humidity = sense.get_humidity()
+    else:
+        temperature = 10 + 10 * math.sin((hour - 5) / 24 * 2 * math.pi)
+        humidity = 70 - 20 * math.sin((hour - 2) / 24 * 2 * math.pi)
     
     # Add a bit of randomness
     temperature += random.uniform(-1, 1)

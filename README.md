@@ -11,7 +11,7 @@ $ source .venv/bin/activate # every terminal session
 
 ## Install dependencies
 
-This project depends on some Python libraries and **Mosquitto MQTT Broker**
+This project depends on some Python libraries, **Mosquitto MQTT Broker** and C library `paho-mqtt3c`.
 
 ```bash
 # Install pyhton libraries
@@ -19,6 +19,13 @@ $ pip install -r requirements.txt
 ```
 
 Check how to install [**Mosquitto MQTT Broker**](https://mosquitto.org/download/) on your system.
+
+```bash
+# Install C library `paho-mqtt3c`
+$ sudo apt install libpaho-mqtt-dev # Debian/Ubuntu
+$ yay -S paho-mqtt-c-git # Arch Linux
+# or install mannually https://github.com/eclipse-paho/paho.mqtt.c?tab=readme-ov-file#build-instructions-for-gnu-make
+```
 
 ## Start the Mosquitto broker
 
@@ -36,7 +43,9 @@ The solar panel program should be run on a Raspberry Pi with the respective Sens
 
 ```bash
 $ python solar_panel_rpi.py 
-$ python wattage_meter_rt_c_component.py
+
+$ gcc wattage_meter_rt_c_component.c -o wattage_meter_rt_c_component -lpaho-mqtt3c -lm
+$ ./wattage_meter_rt_c_component
 ```
 
 ## Start MQTT handler
