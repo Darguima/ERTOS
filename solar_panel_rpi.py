@@ -4,6 +4,8 @@ import time
 import math
 import random
 
+from sense_hat import SenseHat
+
 BROKER = "localhost"
 PORT = 1883
 TOPIC = "sensor/solar_panel_rpi"
@@ -27,8 +29,13 @@ def getSenseHatData():
     # Temp: min at 5 AM, max at 3 PM
     # Humidity: higher at night, lower during the day
 
-    temperature = 10 + 10 * math.sin((hour - 5) / 24 * 2 * math.pi)
-    humidity = 70 - 20 * math.sin((hour - 2) / 24 * 2 * math.pi)
+    sense = SenseHat()
+    temperature = sense.get_temperature()
+    humidity = sense.get_humidity()
+
+
+    # temperature = 10 + 10 * math.sin((hour - 5) / 24 * 2 * math.pi)
+    # humidity = 70 - 20 * math.sin((hour - 2) / 24 * 2 * math.pi)
     
     # Add a bit of randomness
     temperature += random.uniform(-1, 1)
