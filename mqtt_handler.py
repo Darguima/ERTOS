@@ -1,3 +1,5 @@
+#!/usr/bin/env python3
+
 import argparse
 import paho.mqtt.client as mqtt
 from firebase import firebase
@@ -16,6 +18,7 @@ firebase = firebase.FirebaseApplication(FIREBASE_URL, None)
 last_solar_panel_message = None
 last_wattage_meter_message = None
 
+# Receive Terminal Arguments
 parser = argparse.ArgumentParser(description="MQTT Handler for Solar Energy Monitoring")
 parser.add_argument("house_id", help="House ID for identifying the data source")
 args = parser.parse_args()

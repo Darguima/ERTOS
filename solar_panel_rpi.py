@@ -1,3 +1,5 @@
+#!/usr/bin/env python3
+
 import paho.mqtt.client as mqtt
 import json
 import time
@@ -30,21 +32,21 @@ def get_fake_hour():
 def getSenseHatData():
     hour = get_fake_hour()
 
-    # Use sine waves to simulate daily patterns
-    # Temp: min at 5 AM, max at 3 PM
-    # Humidity: higher at night, lower during the day
-
     if SENSE_HAT:
         sense = SenseHat()
         temperature = sense.get_temperature()
         humidity = sense.get_humidity()
+    # Fallback to fake data if SenseHat is not available
     else:
+        # Use sine waves to simulate daily patterns
+        # Temp: min at 5 AM, max at 3 PM
+        # Humidity: higher at night, lower during the day
         temperature = 10 + 10 * math.sin((hour - 5) / 24 * 2 * math.pi)
         humidity = 70 - 20 * math.sin((hour - 2) / 24 * 2 * math.pi)
     
-    # Add a bit of randomness
-    temperature += random.uniform(-1, 1)
-    humidity += random.uniform(-3, 3)
+        # Add a bit of randomness
+        temperature += random.uniform(-1, 1)
+        humidity += random.uniform(-3, 3)
 
     return {
         "humidity": humidity,
