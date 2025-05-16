@@ -76,7 +76,8 @@ def on_message(client, userdata, msg):
         "consumption_wattage": last_wattage_meter_message["consumption_wattage"],
         "production_wattage": last_wattage_meter_message["production_wattage"],
         "house_id": HOUSE_ID,
-        "timestamp": int(time.time())
+        "hour": int((time.time() / 10) % 24),
+        "order_id": int(time.time())
     }
 
     result = firebase.post('data', full_message)
