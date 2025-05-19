@@ -35,7 +35,7 @@ $ sudo pacman -S mosquitto
 The center of the project is the Mosquitto broker. It is responsible for receiving the data from the meters and sending it to the database.
 
 ```bash
-$ mosquitto
+$ mosquitto -c mosquitto.conf
 ```
 
 ## Start the meters
