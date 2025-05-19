@@ -24,12 +24,33 @@
 
 // Global variables
 struct mosquitto *mosq = NULL;
+timer_t timerID;
 volatile int running = 1;
 
-// Signal handler for graceful termination
-void handle_signal(int s)
+// Set real-time scheduling priority
+int set_rt_priority()
 {
-  running = 0;
+  struct sched_param param;
+  int policy = SCHED_FIFO;
+  int max_priority;
+
+  max_priority = sched_get_priority_max(policy);
+  if (max_priority == -1)
+  {
+    perror("sched_get_priority_max");
+    return -1;
+  }
+
+  param.sched_priority = max_priority;
+  if (pthread_setschedparam(pthread_self(), policy, &param) != 0)
+  {
+    perror("pthread_setschedparam");
+    printf("Failed to set real-time priority. Are you running as root?\n");
+    return -1;
+  }
+
+  printf("Successfully set real-time priority\n");
+  return 0;
 }
 
 // Get fake hour for simulation
@@ -96,38 +117,57 @@ void on_publish(struct mosquitto *mosq, void *obj, int mid)
   // printf("Message published successfully (mid: %d)\n", mid);
 }
 
-// Set real-time scheduling priority
-int set_rt_priority()
+// MQTT initialization
+int start_mqtt()
 {
-  struct sched_param param;
-  int policy = SCHED_FIFO;
-  int max_priority;
+  // Initialize mosquitto library
+  mosquitto_lib_init();
 
-  max_priority = sched_get_priority_max(policy);
-  if (max_priority == -1)
+  // Create a new mosquitto client instance
+  mosq = mosquitto_new(CLIENT_ID, true, NULL);
+  if (!mosq)
   {
-    perror("sched_get_priority_max");
-    return -1;
+    fprintf(stderr, "Error: Out of memory.\n");
+    exit(1);
   }
 
-  param.sched_priority = max_priority;
-  if (pthread_setschedparam(pthread_self(), policy, &param) != 0)
+  // Set callbacks
+  mosquitto_connect_callback_set(mosq, on_connect);
+  mosquitto_publish_callback_set(mosq, on_publish);
+
+  // Connect to broker
+  int rc = mosquitto_connect(mosq, BROKER_ADDRESS, BROKER_PORT, 60);
+  if (rc != MOSQ_ERR_SUCCESS)
   {
-    perror("pthread_setschedparam");
-    printf("Failed to set real-time priority. Are you running as root?\n");
-    return -1;
+    fprintf(stderr, "Unable to connect to broker: %s\n", mosquitto_strerror(rc));
+    mosquitto_destroy(mosq);
+    mosquitto_lib_cleanup();
+    exit(1);
   }
 
-  printf("Successfully set real-time priority\n");
+  // Start the network loop in a background thread
+  rc = mosquitto_loop_start(mosq);
+  if (rc != MOSQ_ERR_SUCCESS)
+  {
+    fprintf(stderr, "Unable to start loop: %s\n", mosquitto_strerror(rc));
+    mosquitto_destroy(mosq);
+    mosquitto_lib_cleanup();
+    exit(1);
+  }
+
+  printf("Connected to MQTT Broker\n");
   return 0;
 }
 
-timer_t timerID;
-char json_buffer[256];
-int rc;
-
-void handlerTimer(int signalnumber, siginfo_t *si, void *uc)
+// Signal handler for graceful termination
+void handler_kill(int s)
 {
+  running = 0;
+}
+
+void handler_timer(int signalnumber, siginfo_t *si, void *uc)
+{
+  char json_buffer[256];
   double consumption_wattage, production_wattage;
 
   // Get simulated data
@@ -139,7 +179,7 @@ void handlerTimer(int signalnumber, siginfo_t *si, void *uc)
            consumption_wattage, production_wattage);
 
   // Publish message
-  rc = mosquitto_publish(mosq, NULL, TOPIC, strlen(json_buffer), json_buffer, QOS, false);
+  int rc = mosquitto_publish(mosq, NULL, TOPIC, strlen(json_buffer), json_buffer, QOS, false);
   if (rc != MOSQ_ERR_SUCCESS)
   {
     fprintf(stderr, "Error publishing: %s\n", mosquitto_strerror(rc));
@@ -150,67 +190,20 @@ void handlerTimer(int signalnumber, siginfo_t *si, void *uc)
   }
 }
 
-int main()
+// Timer initialization
+int start_timer()
 {
-
-  // Set up signal handling for graceful termination
-  signal(SIGINT, handle_signal);
-  signal(SIGTERM, handle_signal);
-
-  // Initialize random seed
-  srand(time(NULL));
-
-  // Set real-time priority
-  set_rt_priority();
-
-  // Initialize mosquitto library
-  mosquitto_lib_init();
-
-  // Create a new mosquitto client instance
-  mosq = mosquitto_new(CLIENT_ID, true, NULL);
-  if (!mosq)
-  {
-    fprintf(stderr, "Error: Out of memory.\n");
-    return 1;
-  }
-
-  // Set callbacks
-  mosquitto_connect_callback_set(mosq, on_connect);
-  mosquitto_publish_callback_set(mosq, on_publish);
-
-  // Connect to broker
-  rc = mosquitto_connect(mosq, BROKER_ADDRESS, BROKER_PORT, 60);
-  if (rc != MOSQ_ERR_SUCCESS)
-  {
-    fprintf(stderr, "Unable to connect to broker: %s\n", mosquitto_strerror(rc));
-    mosquitto_destroy(mosq);
-    mosquitto_lib_cleanup();
-    return 1;
-  }
-
-  // Start the network loop in a background thread
-  rc = mosquitto_loop_start(mosq);
-  if (rc != MOSQ_ERR_SUCCESS)
-  {
-    fprintf(stderr, "Unable to start loop: %s\n", mosquitto_strerror(rc));
-    mosquitto_destroy(mosq);
-    mosquitto_lib_cleanup();
-    return 1;
-  }
-
-  printf("Wattage Meter RT C Component started\n");
-  printf("Press Ctrl+C to exit\n");
-
   // CREATE TIMER WITH RT SIGNAL
   struct sigevent sigev;
   sigev.sigev_notify = SIGEV_SIGNAL;
-  sigev.sigev_signo = SIGRTMIN + 4;
+  sigev.sigev_signo = SIGRTMIN + 4;       // Signal number for the timer
   sigev.sigev_value.sival_ptr = &timerID; // Passing the timer's ID for the sigactionHandler
 
-  // 1. parameter: The timer will use this clock
-  // 2. parameter: Raised sigevent on expiration (NULL means SIGALRM)
-  // 3. parameter: The generated timer's ID
-  if (timer_create(CLOCK_REALTIME, &sigev, &timerID))
+  if (timer_create(
+          CLOCK_REALTIME, // The timer will use this clock
+          &sigev,         // Raised sigevent on expiration (NULL means SIGALRM)
+          &timerID        // The generated timer's ID
+          ))
   {
     perror("Failed to create Timer");
     exit(1);
@@ -218,22 +211,48 @@ int main()
 
   // Register signal handler
   struct sigaction sigact;
-  sigemptyset(&sigact.sa_mask); // no blocked signals only the one, which arrives
-  sigact.sa_sigaction = handlerTimer;
+  sigemptyset(&sigact.sa_mask);        // no blocked signals only the one, which arrives
+  sigact.sa_sigaction = handler_timer; // function to be called
   sigact.sa_flags = SA_SIGINFO;
   sigaction(SIGRTMIN + 4, &sigact, NULL); // an alarm signal is set
 
   struct itimerspec timer;
-  timer.it_interval.tv_sec = 1;  // it will be repeated after 3 seconds
+  timer.it_interval.tv_sec = 1;  // it will be repeated after 1 seconds
   timer.it_interval.tv_nsec = 0; // nsec - nanoseconds - 10^(-9) seconds
   timer.it_value.tv_sec = 3;     // remaining time till expiration
   timer.it_value.tv_nsec = 0;
 
-  // 1. parameter: timer to arm
-  // 2. parameter: 0 - relative timer, TIMER_ABSTIME - absolute timer
-  // 3. parameter: expiration and interval settings to be used
-  // 4. parameter: previous timer settings (if needed)
-  timer_settime(timerID, 0, &timer, NULL);
+  timer_settime(
+      timerID, // timer to arm
+      0,       // 0 - relative timer, TIMER_ABSTIME - absolute timer
+      &timer,  // expiration and interval settings to be used
+      NULL     // previous timer settings (if needed)
+  );
+
+  printf("Timer started\n");
+  return 0;
+}
+
+int main()
+{
+  // Initialize random seed
+  srand(time(NULL));
+
+  // Set real-time priority
+  set_rt_priority();
+
+  // Initialize mosquitto library
+  start_mqtt();
+
+  // Set up timer
+  start_timer();
+
+  // Set up signal handling for graceful termination
+  signal(SIGINT, handler_kill);
+  signal(SIGTERM, handler_kill);
+
+  printf("Wattage Meter RT C Component started\n");
+  printf("Press Ctrl+C to exit\n");
 
   while (running)
     ;
