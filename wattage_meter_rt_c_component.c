@@ -93,7 +93,7 @@ void on_connect(struct mosquitto *mosq, void *obj, int reason_code)
 // MQTT publish callback
 void on_publish(struct mosquitto *mosq, void *obj, int mid)
 {
-  printf("Message published successfully (mid: %d)\n", mid);
+  // printf("Message published successfully (mid: %d)\n", mid);
 }
 
 // Set real-time scheduling priority
@@ -122,10 +122,36 @@ int set_rt_priority()
   return 0;
 }
 
+timer_t timerID;
+char json_buffer[256];
+int rc;
+
+void handlerTimer(int signalnumber, siginfo_t *si, void *uc)
+{
+  double consumption_wattage, production_wattage;
+
+  // Get simulated data
+  get_fake_data(&consumption_wattage, &production_wattage);
+
+  // Create JSON message
+  snprintf(json_buffer, sizeof(json_buffer),
+           "{\"consumption_wattage\": %.2f, \"production_wattage\": %.2f}",
+           consumption_wattage, production_wattage);
+
+  // Publish message
+  rc = mosquitto_publish(mosq, NULL, TOPIC, strlen(json_buffer), json_buffer, QOS, false);
+  if (rc != MOSQ_ERR_SUCCESS)
+  {
+    fprintf(stderr, "Error publishing: %s\n", mosquitto_strerror(rc));
+  }
+  else
+  {
+    printf("Published: %s\n", json_buffer);
+  }
+}
+
 int main()
 {
-  char json_buffer[256];
-  int rc;
 
   // Set up signal handling for graceful termination
   signal(SIGINT, handle_signal);
@@ -175,33 +201,42 @@ int main()
   printf("Wattage Meter RT C Component started\n");
   printf("Press Ctrl+C to exit\n");
 
-  // Main loop
-  while (running)
+  // CREATE TIMER WITH RT SIGNAL
+  struct sigevent sigev;
+  sigev.sigev_notify = SIGEV_SIGNAL;
+  sigev.sigev_signo = SIGRTMIN + 4;
+  sigev.sigev_value.sival_ptr = &timerID; // Passing the timer's ID for the sigactionHandler
+
+  // 1. parameter: The timer will use this clock
+  // 2. parameter: Raised sigevent on expiration (NULL means SIGALRM)
+  // 3. parameter: The generated timer's ID
+  if (timer_create(CLOCK_REALTIME, &sigev, &timerID))
   {
-    double consumption_wattage, production_wattage;
-
-    // Get simulated data
-    get_fake_data(&consumption_wattage, &production_wattage);
-
-    // Create JSON message
-    snprintf(json_buffer, sizeof(json_buffer),
-             "{\"consumption_wattage\": %.2f, \"production_wattage\": %.2f}",
-             consumption_wattage, production_wattage);
-
-    // Publish message
-    rc = mosquitto_publish(mosq, NULL, TOPIC, strlen(json_buffer), json_buffer, QOS, false);
-    if (rc != MOSQ_ERR_SUCCESS)
-    {
-      fprintf(stderr, "Error publishing: %s\n", mosquitto_strerror(rc));
-    }
-    else
-    {
-      printf("Published: %s\n", json_buffer);
-    }
-
-    // Sleep for 1 second
-    sleep(1);
+    perror("Failed to create Timer");
+    exit(1);
   }
+
+  // Register signal handler
+  struct sigaction sigact;
+  sigemptyset(&sigact.sa_mask); // no blocked signals only the one, which arrives
+  sigact.sa_sigaction = handlerTimer;
+  sigact.sa_flags = SA_SIGINFO;
+  sigaction(SIGRTMIN + 4, &sigact, NULL); // an alarm signal is set
+
+  struct itimerspec timer;
+  timer.it_interval.tv_sec = 1;  // it will be repeated after 3 seconds
+  timer.it_interval.tv_nsec = 0; // nsec - nanoseconds - 10^(-9) seconds
+  timer.it_value.tv_sec = 3;     // remaining time till expiration
+  timer.it_value.tv_nsec = 0;
+
+  // 1. parameter: timer to arm
+  // 2. parameter: 0 - relative timer, TIMER_ABSTIME - absolute timer
+  // 3. parameter: expiration and interval settings to be used
+  // 4. parameter: previous timer settings (if needed)
+  timer_settime(timerID, 0, &timer, NULL);
+
+  while (running)
+    ;
 
   // Clean up
   mosquitto_loop_stop(mosq, true);
