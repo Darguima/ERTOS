@@ -6,8 +6,9 @@ from firebase import firebase
 import json
 import time
 
-BROKER = "localhost"
-PORT = 1883
+# Default MQTT settings
+DEFAULT_BROKER = "localhost"
+DEFAULT_PORT = 1883
 TOPIC_SOLAR_PANEL = "sensor/solar_panel_rpi"
 TOPIC_WATTAGE_METER = "sensor/wattage_meter_rt_c_component"
 
@@ -21,9 +22,15 @@ last_wattage_meter_message = None
 # Receive Terminal Arguments
 parser = argparse.ArgumentParser(description="MQTT Handler for Solar Energy Monitoring")
 parser.add_argument("house_id", help="House ID for identifying the data source")
+parser.add_argument("broker", nargs="?", default=DEFAULT_BROKER, help="MQTT broker address (default: localhost)")
+parser.add_argument("port", nargs="?", type=int, default=DEFAULT_PORT, help="MQTT broker port (default: 1883)")
 args = parser.parse_args()
 
 HOUSE_ID = args.house_id
+BROKER = args.broker
+PORT = args.port
+
+print(f"Using MQTT Broker: {BROKER}:{PORT}")
 
 def on_connect(client, userdata, flags, reason_code, properties):
     if reason_code.is_failure:

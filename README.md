@@ -46,11 +46,12 @@ The solar panel program should be run on a Raspberry Pi with the respective Sens
 
 ```bash
 # Solar panel program
-$ python solar_panel_rpi.py 
+$ python solar_panel_rpi.py
+$ python solar_panel_rpi.py [broker] [port] # if you want set the broker address and port
 
 # Wattage meter program
 $ gcc wattage_meter_rt_c_component.c -o wattage_meter_rt_c_component -lm  -lmosquitto
-$ ./wattage_meter_rt_c_component
+$ ./wattage_meter_rt_c_component [broker] [port] # if you want set the broker address and port
 ```
 
 ## Start MQTT handler
@@ -61,5 +62,6 @@ You should edit the file to place the correct Firebase URL of a Real Time databa
 
 ```bash
 $ python mqtt_handler.py <house_id>
+$ python mqtt_handler.py <house_id> [broker] [port] # if you want set the broker address and port
 $ python mqtt_handler.py HOUSE_123 # example
 ```

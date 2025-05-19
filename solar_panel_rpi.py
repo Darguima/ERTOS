@@ -5,6 +5,7 @@ import json
 import time
 import math
 import random
+import argparse
 
 SENSE_HAT = True
 try:
@@ -13,9 +14,21 @@ except Exception:
     print("⚠️ \033[91mSenseHat not found, using fake data\033[0m ⚠️")
     SENSE_HAT = False
 
-BROKER = "localhost"
-PORT = 1883
+# Default MQTT settings
+DEFAULT_BROKER = "localhost"
+DEFAULT_PORT = 1883
 TOPIC = "sensor/solar_panel_rpi"
+
+# Parse command-line arguments
+parser = argparse.ArgumentParser(description="Solar Panel MQTT Publisher")
+parser.add_argument("broker", nargs="?", default=DEFAULT_BROKER, help="MQTT broker address (default: localhost)")
+parser.add_argument("port", nargs="?", type=int, default=DEFAULT_PORT, help="MQTT broker port (default: 1883)")
+args = parser.parse_args()
+
+BROKER = args.broker
+PORT = args.port
+
+print(f"Using MQTT Broker: {BROKER}:{PORT}");
 
 # One hour will take SECONDS_PER_HOUR seconds to pass
 # 3600 to a real time simulation (on UTC+0)

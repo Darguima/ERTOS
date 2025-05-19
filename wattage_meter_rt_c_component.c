@@ -10,11 +10,9 @@
 #include <sched.h>
 #include <pthread.h>
 
-#include <unistd.h> // we cant use this lib
-
 // MQTT settings
-#define BROKER_ADDRESS "localhost"
-#define BROKER_PORT 1883
+#define DEFAULT_BROKER_ADDRESS "localhost"
+#define DEFAULT_BROKER_PORT 1883
 #define TOPIC "sensor/wattage_meter_rt_c_component"
 #define QOS 1
 #define CLIENT_ID "wattage_meter_rt_c"
@@ -26,6 +24,9 @@
 struct mosquitto *mosq = NULL;
 timer_t timerID;
 volatile int running = 1;
+
+char broker_address[256] = DEFAULT_BROKER_ADDRESS;
+int broker_port = DEFAULT_BROKER_PORT;
 
 // Set real-time scheduling priority
 int set_rt_priority()
@@ -136,7 +137,7 @@ int start_mqtt()
   mosquitto_publish_callback_set(mosq, on_publish);
 
   // Connect to broker
-  int rc = mosquitto_connect(mosq, BROKER_ADDRESS, BROKER_PORT, 60);
+  int rc = mosquitto_connect(mosq, broker_address, broker_port, 60);
   if (rc != MOSQ_ERR_SUCCESS)
   {
     fprintf(stderr, "Unable to connect to broker: %s\n", mosquitto_strerror(rc));
@@ -155,7 +156,7 @@ int start_mqtt()
     exit(1);
   }
 
-  printf("Connected to MQTT Broker\n");
+  printf("Connected to MQTT Broker at %s:%d\n", broker_address, broker_port);
   return 0;
 }
 
@@ -233,8 +234,21 @@ int start_timer()
   return 0;
 }
 
-int main()
+int main(int argc, char *argv[])
 {
+  // Check command line arguments for broker address and port
+  if (argc > 1)
+  {
+    strncpy(broker_address, argv[1], sizeof(broker_address) - 1);
+    broker_address[sizeof(broker_address) - 1] = '\0'; // Ensure null termination
+  }
+  if (argc > 2)
+  {
+    broker_port = atoi(argv[2]);
+  }
+
+  printf("Using MQTT Broker: %s:%d\n", broker_address, broker_port);
+
   // Initialize random seed
   srand(time(NULL));
 
