@@ -1,118 +1,215 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <time.h>
 #include <math.h>
-#include "MQTTClient.h"
+#include <time.h>
+
+#include <mosquitto.h>
+
+#include <signal.h>
+#include <sched.h>
+#include <pthread.h>
 
 #include <unistd.h> // we cant use this lib
 
-#define ADDRESS "tcp://localhost:1883"
-#define CLIENTID "wattage_meter_client"
+// MQTT settings
+#define BROKER_ADDRESS "localhost"
+#define BROKER_PORT 1883
 #define TOPIC "sensor/wattage_meter_rt_c_component"
-#define QOS 0
-#define TIMEOUT 10000L
+#define QOS 1
+#define CLIENT_ID "wattage_meter_rt_c"
 
-#define SECONDS_PER_HOUR 10
+// Simulation settings
+#define SECONDS_PER_HOUR 10 // One hour will take SECONDS_PER_HOUR seconds to pass
 
-typedef struct
+// Global variables
+struct mosquitto *mosq = NULL;
+volatile int running = 1;
+
+// Signal handler for graceful termination
+void handle_signal(int s)
 {
-    double consumption_wattage;
-    double production_wattage;
-} PowerData;
+  running = 0;
+}
 
+// Get fake hour for simulation
 int get_fake_hour()
 {
-    time_t current_second = time(NULL);
-    int fake_hour = (current_second / SECONDS_PER_HOUR) % 24;
+  time_t current_second = time(NULL);
+  int fake_hour = (int)(current_second / SECONDS_PER_HOUR) % 24;
 
-    printf("Current hour: %d\n", fake_hour);
+  printf("Current hour: %d\n", fake_hour);
 
-    return fake_hour;
+  return fake_hour;
 }
 
-PowerData getFakeData()
+// Generate fake wattage data
+void get_fake_data(double *consumption_wattage, double *production_wattage)
 {
-    int hour = get_fake_hour();
+  int hour = get_fake_hour();
 
-    // Use sine waves to simulate daily patterns
-    // Power consumption: peaks at 8 AM and 6 PM
-    // Solar production: peaks at noon
+  // Use sine waves to simulate daily patterns
+  // Power consumption: peaks at 8 AM and 6 PM
+  // Solar production: peaks at noon
 
-    double consumption_wattage =
-        200 + 150 * (exp(-pow(hour - 8, 2) / 10.0) +
-                     exp(-pow(hour - 18, 2) / 10.0));
+  *consumption_wattage =
+      200 + 150 * (exp(-pow(hour - 8, 2) / 10.0) +
+                   exp(-pow(hour - 18, 2) / 10.0));
 
-    double production_wattage =
-        300 * sin(((hour - 6) / 12.0) * M_PI);
+  *production_wattage =
+      300 * sin(((hour - 6) / 12.0) * M_PI);
 
-    // Add a bit of randomness
-    consumption_wattage += ((rand() % 4001) / 100.0) - 20.0; // [-20, +20]
-    production_wattage += ((rand() % 6001) / 100.0) - 30.0;  // [-30, +30]
+  // Add a bit of randomness
+  *consumption_wattage += ((rand() % 4001) / 100.0) - 20.0; // [-20, +20]
+  *production_wattage += ((rand() % 6001) / 100.0) - 30.0;  // [-30, +30]
 
-    // No production at night
-    if (hour > 22 && hour < 6)
-    {
-        production_wattage = 0;
-    }
+  // No production at night
+  if (hour > 22 && hour < 6)
+  {
+    *production_wattage = 0;
+  }
 
-    // No negative production
-    if (production_wattage < 0)
-    {
-        production_wattage = 0;
-    }
-
-    PowerData data = {consumption_wattage, production_wattage};
-    return data;
+  // No negative production
+  if (*production_wattage < 0)
+  {
+    *production_wattage = 0;
+  }
 }
 
-int main(int argc, char *argv[])
+// MQTT connection callback
+void on_connect(struct mosquitto *mosq, void *obj, int reason_code)
 {
-    srand(time(NULL)); // Seed only once per run
+  if (reason_code != 0)
+  {
+    printf("Failed to connect to MQTT broker: %s\n", mosquitto_connack_string(reason_code));
+    running = 0;
+  }
+  else
+  {
+    printf("Connected to MQTT broker successfully\n");
+  }
+}
 
-    MQTTClient client;
-    MQTTClient_connectOptions conn_opts = MQTTClient_connectOptions_initializer;
-    int rc;
+// MQTT publish callback
+void on_publish(struct mosquitto *mosq, void *obj, int mid)
+{
+  printf("Message published successfully (mid: %d)\n", mid);
+}
 
-    MQTTClient_create(&client, ADDRESS, CLIENTID,
-                      MQTTCLIENT_PERSISTENCE_NONE, NULL);
-    conn_opts.keepAliveInterval = 20;
-    conn_opts.cleansession = 1;
+// Set real-time scheduling priority
+int set_rt_priority()
+{
+  struct sched_param param;
+  int policy = SCHED_FIFO;
+  int max_priority;
 
-    if ((rc = MQTTClient_connect(client, &conn_opts)) != MQTTCLIENT_SUCCESS)
+  max_priority = sched_get_priority_max(policy);
+  if (max_priority == -1)
+  {
+    perror("sched_get_priority_max");
+    return -1;
+  }
+
+  param.sched_priority = max_priority;
+  if (pthread_setschedparam(pthread_self(), policy, &param) != 0)
+  {
+    perror("pthread_setschedparam");
+    printf("Failed to set real-time priority. Are you running as root?\n");
+    return -1;
+  }
+
+  printf("Successfully set real-time priority\n");
+  return 0;
+}
+
+int main()
+{
+  char json_buffer[256];
+  int rc;
+
+  // Set up signal handling for graceful termination
+  signal(SIGINT, handle_signal);
+  signal(SIGTERM, handle_signal);
+
+  // Initialize random seed
+  srand(time(NULL));
+
+  // Set real-time priority
+  set_rt_priority();
+
+  // Initialize mosquitto library
+  mosquitto_lib_init();
+
+  // Create a new mosquitto client instance
+  mosq = mosquitto_new(CLIENT_ID, true, NULL);
+  if (!mosq)
+  {
+    fprintf(stderr, "Error: Out of memory.\n");
+    return 1;
+  }
+
+  // Set callbacks
+  mosquitto_connect_callback_set(mosq, on_connect);
+  mosquitto_publish_callback_set(mosq, on_publish);
+
+  // Connect to broker
+  rc = mosquitto_connect(mosq, BROKER_ADDRESS, BROKER_PORT, 60);
+  if (rc != MOSQ_ERR_SUCCESS)
+  {
+    fprintf(stderr, "Unable to connect to broker: %s\n", mosquitto_strerror(rc));
+    mosquitto_destroy(mosq);
+    mosquitto_lib_cleanup();
+    return 1;
+  }
+
+  // Start the network loop in a background thread
+  rc = mosquitto_loop_start(mosq);
+  if (rc != MOSQ_ERR_SUCCESS)
+  {
+    fprintf(stderr, "Unable to start loop: %s\n", mosquitto_strerror(rc));
+    mosquitto_destroy(mosq);
+    mosquitto_lib_cleanup();
+    return 1;
+  }
+
+  printf("Wattage Meter RT C Component started\n");
+  printf("Press Ctrl+C to exit\n");
+
+  // Main loop
+  while (running)
+  {
+    double consumption_wattage, production_wattage;
+
+    // Get simulated data
+    get_fake_data(&consumption_wattage, &production_wattage);
+
+    // Create JSON message
+    snprintf(json_buffer, sizeof(json_buffer),
+             "{\"consumption_wattage\": %.2f, \"production_wattage\": %.2f}",
+             consumption_wattage, production_wattage);
+
+    // Publish message
+    rc = mosquitto_publish(mosq, NULL, TOPIC, strlen(json_buffer), json_buffer, QOS, false);
+    if (rc != MOSQ_ERR_SUCCESS)
     {
-        printf("Failed to connect, return code %d\n", rc);
-        exit(EXIT_FAILURE);
+      fprintf(stderr, "Error publishing: %s\n", mosquitto_strerror(rc));
+    }
+    else
+    {
+      printf("Published: %s\n", json_buffer);
     }
 
-    while (1)
-    {
-        PowerData data = getFakeData();
+    // Sleep for 1 second
+    sleep(1);
+  }
 
-        char payload[128];
-        snprintf(payload, sizeof(payload),
-                 "{"
-                 "\"consumption_wattage\": %.5f,"
-                 "\"production_wattage\": %.5f"
-                 "}",
-                 data.consumption_wattage, data.production_wattage);
+  // Clean up
+  mosquitto_loop_stop(mosq, true);
+  mosquitto_disconnect(mosq);
+  mosquitto_destroy(mosq);
+  mosquitto_lib_cleanup();
 
-        MQTTClient_message pubmsg = MQTTClient_message_initializer;
-        pubmsg.payload = (void *)payload;
-        pubmsg.payloadlen = (int)strlen(payload);
-        pubmsg.qos = QOS;
-        pubmsg.retained = 0;
+  printf("Wattage Meter RT C Component stopped\n");
 
-        MQTTClient_deliveryToken token;
-        MQTTClient_publishMessage(client, TOPIC, &pubmsg, &token);
-        rc = MQTTClient_waitForCompletion(client, token, TIMEOUT);
-
-        printf("Published: %s\n", payload);
-        sleep(1);
-    }
-
-    MQTTClient_disconnect(client, 10000);
-    MQTTClient_destroy(&client);
-
-    return rc;
+  return 0;
 }
