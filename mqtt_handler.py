@@ -73,8 +73,12 @@ def on_message(client, userdata, msg):
       except json.JSONDecodeError:
           print("Failed to decode wattage_meter JSON payload")
     
-    if last_solar_panel_message is None or last_wattage_meter_message is None:
-        print("Waiting for more messages...")
+    if last_solar_panel_message is None:
+        print("Waiting for more Solar Panel messages...")
+        return
+
+    if last_wattage_meter_message is None:
+        print("Waiting for more Wattage Meter messages...")
         return
 
     full_message = {
@@ -86,6 +90,9 @@ def on_message(client, userdata, msg):
         "hour": int((time.time() / 10) % 24),
         "order_id": int(time.time())
     }
+
+    last_solar_panel_message = None
+    last_wattage_meter_message = None
 
     result = firebase.post('data', full_message)
     print(f"Stored data on firebase: {full_message} with result: {result}")
