@@ -63,7 +63,7 @@ def on_message(client, userdata, msg):
           last_solar_panel_message = received_data
 
       except json.JSONDecodeError:
-          print("Failed to decode solar_panel_rpi JSON payload")
+          print("\nFailed to decode solar_panel_rpi JSON payload")
 
     if msg.topic == TOPIC_WATTAGE_METER:
       try:
@@ -71,14 +71,14 @@ def on_message(client, userdata, msg):
           last_wattage_meter_message = received_data
 
       except json.JSONDecodeError:
-          print("Failed to decode wattage_meter JSON payload")
+          print("\nFailed to decode wattage_meter JSON payload")
     
     if last_solar_panel_message is None:
-        print("Waiting for more Solar Panel messages...")
+        print("\nWaiting for more Solar Panel messages...")
         return
 
     if last_wattage_meter_message is None:
-        print("Waiting for more Wattage Meter messages...")
+        print("\nWaiting for more Wattage Meter messages...")
         return
 
     full_message = {
@@ -95,7 +95,7 @@ def on_message(client, userdata, msg):
     last_wattage_meter_message = None
 
     result = firebase.post('data', full_message)
-    print(f"Stored data on firebase: {full_message} with result: {result}")
+    print(f"\nStored data ({result["name"]}) on firebase:\n{json.dumps(full_message, indent=4)}")
 
 mqttc = mqtt.Client(mqtt.CallbackAPIVersion.VERSION2)
 

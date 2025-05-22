@@ -176,7 +176,7 @@ void handler_timer(int signalnumber, siginfo_t *si, void *uc)
 
   // Create JSON message
   snprintf(json_buffer, sizeof(json_buffer),
-           "{\"consumption_wattage\": %.2f, \"production_wattage\": %.2f}",
+           "{\n\t\"consumption_wattage\": %.2f,\n\t\"production_wattage\": %.2f\n}",
            consumption_wattage, production_wattage);
 
   // Publish message
@@ -187,7 +187,7 @@ void handler_timer(int signalnumber, siginfo_t *si, void *uc)
   }
   else
   {
-    printf("Published: %s\n", json_buffer);
+    printf("Published: %s\n\n", json_buffer);
   }
 }
 

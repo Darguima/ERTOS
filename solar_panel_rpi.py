@@ -78,7 +78,7 @@ try:
         msg_info = mqttc.publish(TOPIC, json.dumps(data))
         msg_info.wait_for_publish()
 
-        print(f"Published: {data}")
+        print(f"Published:\n{json.dumps(data, indent=4)}\n")
         time.sleep(1)
 
 except KeyboardInterrupt:
