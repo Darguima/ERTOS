@@ -86,15 +86,14 @@ def on_message(client, userdata, msg):
         "temperature": last_solar_panel_message["temperature"],
         "consumption_wattage": last_wattage_meter_message["consumption_wattage"],
         "production_wattage": last_wattage_meter_message["production_wattage"],
-        "house_id": HOUSE_ID,
-        "hour": int((time.time() / 10) % 24),
-        "order_id": int(time.time())
+
+        "timestamp": int(time.time()),
     }
 
     last_solar_panel_message = None
     last_wattage_meter_message = None
 
-    result = firebase.post('data', full_message)
+    result = firebase.post(f"houses/{HOUSE_ID}", full_message)
     print(f"\nStored data ({result["name"]}) on firebase:\n{json.dumps(full_message, indent=4)}")
 
 mqttc = mqtt.Client(mqtt.CallbackAPIVersion.VERSION2)

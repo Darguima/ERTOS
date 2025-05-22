@@ -30,20 +30,8 @@ PORT = args.port
 
 print(f"Using MQTT Broker: {BROKER}:{PORT}");
 
-# One hour will take SECONDS_PER_HOUR seconds to pass
-# 3600 to a real time simulation (on UTC+0)
-SECONDS_PER_HOUR = 10
-
-def get_fake_hour():
-    current_second = time.time()
-    fake_hour = int(current_second / SECONDS_PER_HOUR) % 24
-
-    print(f"Current hour: {fake_hour}")
-
-    return fake_hour
-
 def getSenseHatData():
-    hour = get_fake_hour()
+    hour = time.localtime().tm_hour
 
     if SENSE_HAT:
         sense = SenseHat()

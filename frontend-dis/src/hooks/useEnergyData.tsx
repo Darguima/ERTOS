@@ -24,10 +24,11 @@ interface CachedData {
 }
 
 interface FirebaseData {
-  consumption_wattage?: number;
-  production_wattage?: number;
-  temperature?: number;
-  humidity?: number;
+  humidity: number;
+  temperature: number;
+  consumption_wattage: number;
+  production_wattage: number;
+
   timestamp: number;
 }
 
@@ -93,9 +94,9 @@ export const useEnergyData = () => {
           
           // Process data for different time ranges
           setCachedData({
-            day: processRawData(rawData, 'day', dayHours),
-            week: processRawData(rawData, 'week', weekHours),
-            month: processRawData(rawData, 'month', monthHours)
+            day: processRawData(rawData, 'day'),
+            week: processRawData(rawData, 'week'),
+            month: processRawData(rawData, 'month')
           });
           setError(null);
         }
@@ -201,7 +202,7 @@ export const useEnergyData = () => {
     const result: Record<number, FirebaseData[]> = {};
     
     data.forEach(item => {
-      const date = new Date(item.timestamp);
+      const date = new Date(item.timestamp * 1000);
       const hour = date.getHours();
       
       if (!result[hour]) {
@@ -218,7 +219,7 @@ export const useEnergyData = () => {
     const result: Record<number, FirebaseData[]> = {};
     
     data.forEach(item => {
-      const date = new Date(item.timestamp);
+      const date = new Date(item.timestamp * 1000);
       const day = date.getDay(); // 0-6, where 0 is Sunday
       
       if (!result[day]) {
@@ -235,7 +236,7 @@ export const useEnergyData = () => {
     const result: Record<number, FirebaseData[]> = {};
     
     data.forEach(item => {
-      const date = new Date(item.timestamp);
+      const date = new Date(item.timestamp * 1000);
       const dayOfMonth = date.getDate(); // 1-31
       
       if (!result[dayOfMonth]) {

@@ -17,9 +17,6 @@
 #define QOS 1
 #define CLIENT_ID "wattage_meter_rt_c"
 
-// Simulation settings
-#define SECONDS_PER_HOUR 10 // One hour will take SECONDS_PER_HOUR seconds to pass
-
 // Global variables
 struct mosquitto *mosq = NULL;
 timer_t timerID;
@@ -54,21 +51,13 @@ int set_rt_priority()
   return 0;
 }
 
-// Get fake hour for simulation
-int get_fake_hour()
-{
-  time_t current_second = time(NULL);
-  int fake_hour = (int)(current_second / SECONDS_PER_HOUR) % 24;
-
-  printf("Current hour: %d\n", fake_hour);
-
-  return fake_hour;
-}
-
 // Generate fake wattage data
 void get_fake_data(double *consumption_wattage, double *production_wattage)
 {
-  int hour = get_fake_hour();
+  // Get the current hour (0-23) based on the system's local time
+  time_t current_time = time(NULL);
+  struct tm *local_time = localtime(&current_time);
+  int hour = local_time->tm_hour;
 
   // Use sine waves to simulate daily patterns
   // Power consumption: peaks at 8 AM and 6 PM
