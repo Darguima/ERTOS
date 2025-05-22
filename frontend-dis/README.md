@@ -1,69 +1,97 @@
-# Welcome to your Lovable project
+# Solar Panel Monitoring System - Frontend
 
-## Project info
+This frontend application provides a user-friendly interface for visualizing energy data collected from households with solar panel installations. It displays interactive charts showing daily, weekly, and monthly energy consumption and production values.
 
-**URL**: https://lovable.dev/projects/2f71aa24-1a83-42bd-b51c-dfec4f0450b4
+## Features
 
-## How can I edit this code?
+- Real-time data visualization
+- Energy consumption and production monitoring
+- Temperature and humidity tracking
+- Multiple time range views (daily, weekly, monthly)
+- House-specific data isolation
 
-There are several ways of editing your application.
+## Technology Stack
 
-**Use Lovable**
-
-Simply visit the [Lovable Project](https://lovable.dev/projects/2f71aa24-1a83-42bd-b51c-dfec4f0450b4) and start prompting.
-
-Changes made via Lovable will be committed automatically to this repo.
-
-**Use your preferred IDE**
-
-If you want to work locally using your own IDE, you can clone this repo and push changes. Pushed changes will also be reflected in Lovable.
-
-The only requirement is having Node.js & npm installed - [install with nvm](https://github.com/nvm-sh/nvm#installing-and-updating)
-
-Follow these steps:
-
-```sh
-# Step 1: Clone the repository using the project's Git URL.
-git clone <YOUR_GIT_URL>
-
-# Step 2: Navigate to the project directory.
-cd <YOUR_PROJECT_NAME>
-
-# Step 3: Install the necessary dependencies.
-npm i
-
-# Step 4: Start the development server with auto-reloading and an instant preview.
-npm run dev
-```
-
-**Edit a file directly in GitHub**
-
-- Navigate to the desired file(s).
-- Click the "Edit" button (pencil icon) at the top right of the file view.
-- Make your changes and commit the changes.
-
-**Use GitHub Codespaces**
-
-- Navigate to the main page of your repository.
-- Click on the "Code" button (green button) near the top right.
-- Select the "Codespaces" tab.
-- Click on "New codespace" to launch a new Codespace environment.
-- Edit files directly within the Codespace and commit and push your changes once you're done.
-
-## What technologies are used for this project?
-
-This project is built with .
+This project is built with:
 
 - Vite
 - TypeScript
 - React
 - shadcn-ui
 - Tailwind CSS
+- Firebase for data storage
 
-## How can I deploy this project?
+## Getting Started
 
-Simply open [Lovable](https://lovable.dev/projects/2f71aa24-1a83-42bd-b51c-dfec4f0450b4) and click on Share -> Publish.
+### Prerequisites
 
-## I want to use a custom domain - is that possible?
+- Node.js & npm installed - [install with nvm](https://github.com/nvm-sh/nvm#installing-and-updating)
+- Backend components running (MQTT broker, sensors, and handler)
 
-We don't support custom domains (yet). If you want to deploy your project under your own domain then we recommend using Netlify. Visit our docs for more details: [Custom domains](https://docs.lovable.dev/tips-tricks/custom-domain/)
+### Installation
+
+```sh
+# Navigate to the frontend directory
+cd frontend-dis
+
+# Install dependencies
+npm i
+
+# Start the development server
+npm run dev
+```
+
+### Usage
+
+Once the server is running, access the application at:
+
+```
+http://localhost:8080/?house_id=<HOUSE_ID>
+```
+
+Where `<HOUSE_ID>` matches the ID used with the MQTT handler.
+
+## System Architecture
+
+This frontend is part of a larger Solar Panel Monitoring System that includes:
+
+1. Raspberry Pi with SenseHAT (or simulation) for temperature and humidity data
+2. Real-time C component for wattage meter simulation
+3. MQTT handler that bridges sensor data to Firebase
+4. This React frontend for data visualization
+
+## Development
+
+### Project Structure
+
+The frontend project follows a structured organization:
+
+- `/src/components/charts/`: Contains all visualization components for energy data
+- `/src/firebase/`: Firebase configuration and connection utilities
+- `/src/hooks/`: Custom React hooks including `useEnergyData` for fetching from Firebase
+- `/src/pages/`: Main application pages
+- `/src/types/`: TypeScript type definitions
+- `/src/utils/`: Helper functions for chart data processing
+
+### Making Changes
+
+When working on the frontend:
+
+1. Modify chart visualizations in `/src/components/charts/`
+2. Update Firebase connection settings in `/src/firebase/config.ts` if needed
+3. Extend data fetching logic in `/src/hooks/useEnergyData.tsx`
+4. Test with real-time data by running all system components:
+   - Mosquitto MQTT broker
+   - Solar panel simulator
+   - Wattage meter component
+   - MQTT handler with the same house ID
+
+### Building for Production
+
+To create a production build:
+
+```sh
+npm run build
+```
+
+The build artifacts will be stored in the `dist/` directory.
