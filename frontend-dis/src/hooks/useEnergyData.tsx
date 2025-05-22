@@ -32,7 +32,7 @@ interface FirebaseData {
   timestamp: number;
 }
 
-export const useEnergyData = () => {
+export const useEnergyData = (HOUSE_ID :string) => {
   // Cache data for each time range
   const [cachedData, setCachedData] = useState<CachedData>({
     day: [],
@@ -44,9 +44,6 @@ export const useEnergyData = () => {
 
   // Store the last update timestamp
   const [lastUpdate, setLastUpdate] = useState<Date>(new Date());
-
-  // Set default house ID (should be configurable in a real app)
-  const HOUSE_ID = "HOUSE_123"; // This should match what you use with mqtt_handler.py
 
   // Initialize data on mount
   useEffect(() => {

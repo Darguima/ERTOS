@@ -18,8 +18,8 @@ const EnergyDashboard = () => {
   const [showHumidityOverlay, setShowHumidityOverlay] = useState(true);
   const [showControls, setShowControls] = useState(false);
 
-  const { data, metrics, formatTime, isLoading, error } = useEnergyData();
-  const HOUSE_ID = "HOUSE_123"; // This should match what you use with mqtt_handler.py
+  const HOUSE_ID = new URLSearchParams(window.location.search).get("house_id") || "HOUSE_123"; // This should match what you use with mqtt_handler.py
+  const { data, metrics, formatTime, isLoading, error } = useEnergyData(HOUSE_ID);
   const currentData = data[timeRange] || [];
 
   // Early return for loading state
@@ -313,7 +313,7 @@ const EnergyDashboard = () => {
         </p>
       ) : (
         <p className="text-green-500 mb-4 text-sm font-medium bg-green-50 p-2 rounded">
-          Connected to Raspberry Pi SenseHat - Displaying real-time data
+          Connected to Database of {HOUSE_ID} - Displaying real-time data
         </p>
       )}
 
