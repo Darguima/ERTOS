@@ -1,1 +1,9 @@
 wattage_meter_rt_c_component
+.vscode
+.idea
+.venv
+venv
+__pycache__
+*.pyc
+main.typ
+.ds_store
