@@ -167,7 +167,7 @@ $ ./wattage_meter_rt_c_component [broker IP] [port]
 
 The final piece of the project is the MQTT Handler. This script requires as a parameter a unique identifier per house.
 
-Is possible update the Firebase database updating the variable `FIREBASE_URL`.
+You should update the Firebase database updating the variable `FIREBASE_URL`.
 
 ```bash
 $ python mqtt_handler.py <house_id>
@@ -184,6 +184,8 @@ After completing these steps, the system will be fully operational, with synchro
 #### 4.4. Frontend
 
 To launch the frontend interface, navigate to the frontend-dis directory, install the necessary dependencies, and start the development server:
+
+You should update the Firebase database updating the variable `FIREBASE_URL`.
 
 ```bash
 $ cd frontend-dis
@@ -221,7 +223,7 @@ Don't forget to give the project a star! Thanks again!
 <!-- https://www.markdownguide.org/basic-syntax/#reference-style-links -->
 [university-badge]: https://img.shields.io/badge/University-ELTE-red?style=for-the-badge
 [subject-badge]: https://img.shields.io/badge/Subject-ERTS-blue?style=for-the-badge
-[grade-badge]: https://img.shields.io/badge/Grade-[UNI_GRADE]%2F20-brightgreen?style=for-the-badge
+[grade-badge]: https://img.shields.io/badge/Grade-5%2F5-brightgreen?style=for-the-badge
 
 [React.js-badge]: https://img.shields.io/badge/React-20232A?style=for-the-badge&logo=react&logoColor=61DAFB
 [React-url]: https://reactjs.org/
